@@ -1,0 +1,153 @@
+﻿@model ChequePrint.Models.ChequeModel
+
+@{
+    ViewBag.Title = "Index";
+}
+
+<h2>Print Your Cheque</h2>
+
+
+@using (Html.BeginForm("Post", "PrintController", FormMethod.Post, new { id = "form1" }))
+{
+    @Html.AntiForgeryToken()
+
+    <div class="form-horizontal">
+        @*<h4>ChequeModel</h4>*@
+        <hr />
+        @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+        <div class="form-group">
+            @Html.LabelFor(model => model.Name, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.Name, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.Name, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            @Html.LabelFor(model => model.Amount, htmlAttributes: new { @class = "control-label col-md-2" })
+            <div class="col-md-10">
+                @Html.EditorFor(model => model.Amount, new { htmlAttributes = new { @class = "form-control" } })
+                @Html.ValidationMessageFor(model => model.Amount, "", new { @class = "text-danger" })
+            </div>
+        </div>
+
+        <div class="form-group">
+            <div class="col-md-offset-2 col-md-10">
+                <input type="submit" id="printBtn" value="Print Cheque" class="btn btn-default" />
+            </div>
+        </div>
+    </div>
+}
+<p>&nbsp;</p>
+<h2>Printed Cheque</h2>
+<hr />
+<div id="printedCheque">
+    <div>
+        <span>Name:</span>
+        <span id="printedName"></span>
+    </div>
+    <div>
+        <span>Printed Amount:</span>
+        <span id="printedAmount"></span>
+    </div>
+</div>
+
+@*<div>
+        @Html.ActionLink("Back to List", "Index")
+    </div>*@
+
+<script src="~/Scripts/jquery-1.10.2.min.js"></script>
+<script src="~/Scripts/jquery.validate.min.js"></script>
+<script src="~/Scripts/jquery.validate.unobtrusive.min.js"></script>
+
+<script>
+    $(function () {
+        $("#form1").submit(function (e) {
+
+            var form = $(this);
+
+            $inputs = $(this).find("input");
+
+            $.ajax({
+                url: "/api/print",
+                method: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({
+                    Name: $inputs.filter('[name="Name"]').val(),
+                    Amount: $inputs.filter('[name="Amount"]').val()
+                }),
+                headers: {
+                    __RequestVerificationToken: $inputs.filter('[name="__RequestVerificationToken"]').val()
+                }
+            })
+                .done(function (val) {
+                    clearErrors(form);
+
+                    $("#printedName").text(val.Name);
+                    $("#printedAmount").text(val.PrintedAmount);
+                })
+                .fail(function (jqXhr) {
+                    var data = JSON.parse(jqXhr.responseText), errors = {};
+
+                    $.each(data.ModelState, function (key, value) {
+                        //var pieces = key.split('.');
+                        //key = pieces[pieces.length - 1];
+                        //errors[key] = value;
+                        remoteErrors(form, key, value);
+                    });
+
+                    //validator.showErrors(errors);
+                });
+
+            return false;
+        });
+
+        function remoteErrors(jForm, name, errors) {
+
+            function inner_ServerErrors(name, elements) {
+                var ToApply = function () {
+                    for (var i = 0; i < elements.length; i++) {
+                        var currElement = elements[i];
+                        var currDom = $('#' + name.split('.')[1]);
+                        if (currDom.length == 0) continue;
+                        var currForm = currDom.parents('form').first();
+                        if (currForm.length == 0) continue;
+
+                        if (!currDom.hasClass('input-validation-error'))
+                            currDom.addClass('input-validation-error');
+                        var currDisplay = $(currForm).find("[data-valmsg-for='" + name.split('.')[1] + "']");
+                        if (currDisplay.length > 0) {
+                            currDisplay.removeClass("field-validation-valid").addClass("field-validation-error");
+                            if (currDisplay.attr("data-valmsg-replace") !== false) {
+                                currDisplay.empty();
+                                currDisplay.text(currElement);
+                            }
+                        }
+                    }
+                };
+                setTimeout(ToApply, 0);
+            }
+
+            jForm.find('.input-validation-error').removeClass('input-validation-error');
+            jForm.find('.field-validation-error').removeClass('field-validation-error').addClass('field-validation-valid');
+            var container = jForm.find("[data-valmsg-summary=true]");
+            list = container.find("ul");
+            list.empty();
+            if (errors && errors.length > 0) {
+                $.each(errors, function (i, ival) {
+                    $("<li />").html(ival).appendTo(list);
+                });
+                container.addClass("validation-summary-errors").removeClass("validation-summary-valid");
+                inner_ServerErrors(name, errors);
+                setTimeout(function () { jForm.find('span.input-validation-error[data-element-type]').removeClass('input-validation-error') }, 0);
+            }
+            else {
+                container.addClass("validation-summary-valid").removeClass("validation-summary-errors");
+            }
+        }
+
+        function clearErrors(jForm) {
+            remoteErrors(jForm, []);
+        }
+    });
+</script>
